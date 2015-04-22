@@ -1,0 +1,15 @@
+{
+  "name": "tessel-hmc5883l",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "James McCann <jmccnz@gmail.com>",
+  "repository": "https://github.com/jamesmccann/tessel-hmc5883l",
+  "license": "ISC",
+  "dependencies": {
+    "sync-queue": "0.0.2"
+  }
+}
