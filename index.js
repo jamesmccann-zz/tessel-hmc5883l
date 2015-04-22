@@ -5,10 +5,11 @@ var Queue = require('sync-queue');
 var I2C_ADDR = 0x1E,
     CONFIG_A = 0x00,
     CONFIG_B = 0x01,
-    MODE = 0x02,
+    MODE     = 0x02,
     XOUT_MSB = 0x03,
-    XOUT_LSB = 0x04,
-    YOUT_MSB = 0x05;
+    ZOUT_MSB = 0x05,
+    YOUT_MSB = 0x07,
+    STATUS   = 0x08;
 
 // Samples per measurement
 var CRA_SAMPLES_8 = 0x03, // 0b11
@@ -39,6 +40,7 @@ var MR_HIGH_SPEED      = 0x80, // 0b10000000
 var Hmc5883l = function(port) {
   this.i2c = new port.I2C(I2C_ADDR);
   this.queue = new Queue();
+  this.declination = 0;
 
   this.init();
 };
@@ -48,10 +50,10 @@ util.inherits(Hmc5883l, EventEmitter);
 Hmc5883l.prototype.init = function() {
   var self = this;
   // Set data output rate to 75Hz
-  this._writeRegister(0x00, 0x14);
+  this._writeRegister(CONFIG_A, 0x14);
 
   // Set mode to continuous
-  this._writeRegister(0x02, 0x00, function() {
+  this._writeRegister(MODE, 0x00, function() {
     self.emit('ready');
   });
 };
@@ -78,11 +80,26 @@ Hmc5883l.prototype._writeRegister = function (addressToWrite, dataToWrite, callb
   });
 };
 
+Hmc5883l.prototype.readStatus = function(callback) {
+  this._readRegisters(STATUS, 1, function(err, rx) {
+    var status = rx.readInt8(0);
+
+    if (callback) {
+      callback({
+        lock: status & 0x02,
+        ready: status & 0x01
+      });
+    }
+  });
+};
+
 Hmc5883l.prototype.readRawData = function (callback) {
-  this._readRegisters(0x03, 6, function(err, rx) {
+  this._readRegisters(XOUT_MSB, 6, function(err, rx) {
     var hx = rx.readInt16BE(0);
-    var hy = rx.readInt16BE(2);
-    var hz = rx.readInt16BE(4);
+    var hz = rx.readInt16BE(2);
+    var hy = rx.readInt16BE(4);
+
+    console.log('read', hx, hy, hz);
 
     if (callback) {
       callback(hx, hy, hz);
@@ -91,15 +108,18 @@ Hmc5883l.prototype.readRawData = function (callback) {
 };
 
 Hmc5883l.prototype.getBearing = function(hx, hy, hz) {
-  if (hy > 0) {
-    return 90 - Math.atan2(hx, hy) * 57.295;
-  } else if (hy < 0) {
-    return 270 - Math.atan2(hx, hy) * 57.295;
-  } else if (hx < 0) {
-    return 180;
-  } else {
-    return 0;
+  //if (hy > 0) {
+  var heading = Math.atan2(hy, hx);
+  if (heading < 0) {
+    heading += 2*Math.PI;
   }
+  return heading * 57.295 + this.declination;
+  //} else if (hy < 0) {
+    //return 270 - Math.atan2(hy, hx) * 57.295;
+  //} else if (hx < 0) {
+    //return 180;
+  //} else {
+    //return 0;
 };
 
 Hmc5883l.prototype.readBearing = function(callback) {
@@ -110,6 +130,10 @@ Hmc5883l.prototype.readBearing = function(callback) {
       callback(bearing);
     }
   });
+};
+
+Hmc5883l.prototype.setDeclination = function(declination) {
+  this.declination = declination;
 };
 
 var use = function(port) {
