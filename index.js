@@ -99,7 +99,7 @@ Hmc5883l.prototype.readRawData = function (callback) {
     var hz = rx.readInt16BE(2);
     var hy = rx.readInt16BE(4);
 
-    console.log('read', hx, hy, hz);
+    console.log('read hx', hx, 'hy', hy, 'hz', hz);
 
     if (callback) {
       callback(hx, hy, hz);
@@ -108,24 +108,24 @@ Hmc5883l.prototype.readRawData = function (callback) {
 };
 
 Hmc5883l.prototype.getBearing = function(hx, hy, hz) {
-  //if (hy > 0) {
-  var heading = Math.atan2(hy, hx);
-  if (heading < 0) {
-    heading += 2*Math.PI;
+  if (hy > 0) {
+    return 90 - Math.atan(hx / hy) * 57.295;
+  } else if (hy < 0) {
+    return 270 - Math.atan(hx / hy) * 57.295;
+  } else if (hx < 0) {
+    return 180;
+  } else {
+    return 0;
   }
-  return heading * 57.295 + this.declination;
-  //} else if (hy < 0) {
-    //return 270 - Math.atan2(hy, hx) * 57.295;
-  //} else if (hx < 0) {
-    //return 180;
-  //} else {
-    //return 0;
 };
 
 Hmc5883l.prototype.readBearing = function(callback) {
   var self = this;
   self.readRawData(function(hx, hy, hz) {
-    var bearing = self.getBearing(hx, hy, hz);
+    console.log('declnetion', self.declination);
+    var bearing = self.getBearing(hx, hy, hz) + self.declination;
+    if (bearing > 360) { bearing -= 360; }
+
     if (callback) {
       callback(bearing);
     }
