@@ -107,7 +107,9 @@ Hmc5883l.prototype.readRawData = function (callback) {
   });
 };
 
-Hmc5883l.prototype.getBearing = function(hx, hy, hz) {
+// Converts the x and y vector components from the mag reading into a bearing
+// See http://www.adafruit.com/datasheets/AN203_Compass_Heading_Using_Magnetometers.pdf
+Hmc5883l.prototype.getMagneticBearing = function(hx, hy, hz) {
   if (hy > 0) {
     return 90 - Math.atan(hx / hy) * 57.295;
   } else if (hy < 0) {
@@ -119,11 +121,11 @@ Hmc5883l.prototype.getBearing = function(hx, hy, hz) {
   }
 };
 
-Hmc5883l.prototype.readBearing = function(callback) {
+Hmc5883l.prototype.readTrueBearing = function(callback) {
   var self = this;
   self.readRawData(function(hx, hy, hz) {
     console.log('declnetion', self.declination);
-    var bearing = self.getBearing(hx, hy, hz) + self.declination;
+    var bearing = self.getMagneticBearing(hx, hy, hz) + self.declination;
     if (bearing > 360) { bearing -= 360; }
 
     if (callback) {
